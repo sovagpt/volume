@@ -1,0 +1,16 @@
+{
+  "name": "pumpfun-analytics",
+  "version": "1.0.0",
+  "description": "Live pump.fun volume analytics with Telegram integration",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step required'",
+    "start": "vercel dev"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
