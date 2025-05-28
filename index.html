@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pump.fun Volume Analytics</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-title {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-change {
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .positive { color: #4ecdc4; }
+        .negative { color: #ff6b6b; }
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .ai-terminal {
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .terminal-header {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .terminal-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .dot.red { background-color: #ff5f56; }
+        .dot.yellow { background-color: #ffbd2e; }
+        .dot.green { background-color: #27ca3f; }
+
+        .terminal-title {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-left: 10px;
+        }
+
+        .terminal-body {
+            padding: 20px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .terminal-output {
+            margin-bottom: 15px;
+        }
+
+        .terminal-prompt {
+            color: #4ecdc4;
+        }
+
+        .terminal-input-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding: 0 20px 20px;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            outline: none;
+            padding: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .send-btn {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: opacity 0.3s ease;
+        }
+
+        .send-btn:hover {
+            opacity: 0.8;
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .config-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .config-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 0.9rem;
+        }
+
+        .config-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .save-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: opacity 0.3s ease;
+        }
+
+        .save-btn:hover {
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Pump.fun Volume Analytics</h1>
+            <p>Real-time volume tracking and AI-powered analysis</p>
+        </div>
+
+        <div class="config-section">
+            <h3>Configuration</h3>
+            <input type="password" id="apiKey" class="config-input" placeholder="Enter Anthropic API Key">
+            <button class="save-btn" onclick="saveApiKey()">Save API Key</button>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats will be populated here -->
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-container">
+                <h3 class="chart-title">Volume Trend (24h)</h3>
+                <canvas id="volumeChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3 class="chart-title">Trading Activity</h3>
+                <canvas id="tradingChart"></canvas>
+            </div>
+        </div>
+
+        <div class="ai-terminal">
+            <div class="terminal-header">
+                <div class="terminal-dots">
+                    <div class="dot red"></div>
+                    <div class="dot yellow"></div>
+                    <div class="dot green"></div>
+                </div>
+                <div class="terminal-title">AI Analytics Terminal</div>
+            </div>
+            <div class="terminal-body" id="terminalOutput">
+                <div class="terminal-output">
+                    <span class="terminal-prompt">pump.fun@analytics:~$</span> Welcome to Pump.fun AI Analytics Terminal
+                </div>
+                <div class="terminal-output">
+                    <span class="terminal-prompt">system:</span> Ready to analyze volume data. Type 'help' for available commands.
+                </div>
+            </div>
+            <div class="terminal-input-container">
+                <span class="terminal-prompt">pump.fun@analytics:~$</span>
+                <input type="text" id="terminalInput" class="terminal-input" placeholder="Enter command or question...">
+                <button class="send-btn" onclick="sendCommand()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample data structure (replace with real data from Telegram bot)
+        let volumeData = {
+            current: {
+                totalVolume: 14629.24,
+                buyVolume: 8081.8,
+                sellVolume: 6547.44,
+                totalTrades: 34450,
+                newCoins: 1257,
+                totalBuys: 17536,
+                totalSells: 16914,
+                reachedKOTH: 44,
+                fullyBonded: 19
+            },
+            previous: {
+                totalVolume: 12946.51,
+                buyVolume: 7160.86,
+                sellVolume: 5785.65,
+                totalTrades: 32533,
+                newCoins: 1359,
+                totalBuys: 16104,
+                totalSells: 15789,
+                reachedKOTH: 27,
+                fullyBonded: 8
+            },
+            hourlyData: []
+        };
+
+        let apiKey = '';
+        let volumeChart, tradingChart;
+
+        // Initialize the dashboard
+        function init() {
+            generateHourlyData();
+            updateStats();
+            createCharts();
+            loadApiKey();
+        }
+
+        function generateHourlyData() {
+            // Generate sample hourly data for the last 24 hours
+            const now = new Date();
+            for (let i = 23; i >= 0; i--) {
+                const hour = new Date(now.getTime() - (i * 60 * 60 * 1000));
+                volumeData.hourlyData.push({
+                    time: hour.getHours() + ':00',
+                    volume: Math.random() * 2000 + 10000,
+                    trades: Math.floor(Math.random() * 500 + 1000),
+                    newCoins: Math.floor(Math.random() * 50 + 30)
+                });
+            }
+        }
+
+        function updateStats() {
+            const statsGrid = document.getElementById('statsGrid');
+            const current = volumeData.current;
+            const previous = volumeData.previous;
+
+            function getChangePercent(current, previous) {
+                return ((current - previous) / previous * 100).toFixed(2);
+            }
+
+            function getChangeClass(current, previous) {
+                return current >= previous ? 'positive' : 'negative';
+            }
+
+            function formatNumber(num) {
+                return num.toLocaleString();
+            }
+
+            const stats = [
+                {
+                    title: 'Total Volume',
+                    value: `${current.totalVolume.toFixed(2)} SOL`,
+                    change: `${getChangePercent(current.totalVolume, previous.totalVolume)}%`,
+                    changeClass: getChangeClass(current.totalVolume, previous.totalVolume)
+                },
+                {
+                    title: 'Buy Volume',
+                    value: `${current.buyVolume.toFixed(2)} SOL`,
+                    change: `${getChangePercent(current.buyVolume, previous.buyVolume)}%`,
+                    changeClass: getChangeClass(current.buyVolume, previous.buyVolume)
+                },
+                {
+                    title: 'Sell Volume',
+                    value: `${current.sellVolume.toFixed(2)} SOL`,
+                    change: `${getChangePercent(current.sellVolume, previous.sellVolume)}%`,
+                    changeClass: getChangeClass(current.sellVolume, previous.sellVolume)
+                },
+                {
+                    title: 'Total Trades',
+                    value: formatNumber(current.totalTrades),
+                    change: `${getChangePercent(current.totalTrades, previous.totalTrades)}%`,
+                    changeClass: getChangeClass(current.totalTrades, previous.totalTrades)
+                },
+                {
+                    title: 'New Coins',
+                    value: formatNumber(current.newCoins),
+                    change: `${getChangePercent(current.newCoins, previous.newCoins)}%`,
+                    changeClass: getChangeClass(current.newCoins, previous.newCoins)
+                },
+                {
+                    title: 'Reached KOTH',
+                    value: formatNumber(current.reachedKOTH),
+                    change: `${getChangePercent(current.reachedKOTH, previous.reachedKOTH)}%`,
+                    changeClass: getChangeClass(current.reachedKOTH, previous.reachedKOTH)
+                }
+            ];
+
+            statsGrid.innerHTML = stats.map(stat => `
+                <div class="stat-card">
+                    <div class="stat-title">${stat.title}</div>
+                    <div class="stat-value">${stat.value}</div>
+                    <div class="stat-change ${stat.changeClass}">
+                        ${stat.changeClass === 'positive' ? '↗' : '↘'} ${stat.change}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function createCharts() {
+            const ctx1 = document.getElementById('volumeChart').getContext('2d');
+            const ctx2 = document.getElementById('tradingChart').getContext('2d');
+
+            volumeChart = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: volumeData.hourlyData.map(d => d.time),
+                    datasets: [{
+                        label: 'Volume (SOL)',
+                        data: volumeData.hourlyData.map(d => d.volume),
+                        borderColor: '#4ecdc4',
+                        backgroundColor: 'rgba(78, 205, 196, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#fff' }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                        y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                    }
+                }
+            });
+
+            tradingChart = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: volumeData.hourlyData.slice(-6).map(d => d.time),
+                    datasets: [
+                        {
+                            label: 'Trades',
+                            data: volumeData.hourlyData.slice(-6).map(d => d.trades),
+                            backgroundColor: 'rgba(255, 107, 107, 0.8)',
+                            borderColor: '#ff6b6b',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'New Coins',
+                            data: volumeData.hourlyData.slice(-6).map(d => d.newCoins),
+                            backgroundColor: 'rgba(78, 205, 196, 0.8)',
+                            borderColor: '#4ecdc4',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#fff' }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                        y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                    }
+                }
+            });
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('apiKey').value;
+            if (key) {
+                apiKey = key;
+                localStorage.setItem('anthropic_api_key', key);
+                addTerminalOutput('system:', 'API key saved successfully!');
+                document.getElementById('apiKey').value = '';
+            }
+        }
+
+        function loadApiKey() {
+            const stored = localStorage.getItem('anthropic_api_key');
+            if (stored) {
+                apiKey = stored;
+                addTerminalOutput('system:', 'API key loaded from storage.');
+            }
+        }
+
+        function addTerminalOutput(type, message) {
+            const output = document.getElementById('terminalOutput');
+            const div = document.createElement('div');
+            div.className = 'terminal-output';
+            div.innerHTML = `<span class="terminal-prompt">${type}</span> ${message}`;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        async function sendCommand() {
+            const input = document.getElementById('terminalInput');
+            const command = input.value.trim();
+            
+            if (!command) return;
+
+            addTerminalOutput('user:', command);
+            input.value = '';
+
+            const sendBtn = document.querySelector('.send-btn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Processing...';
+
+            try {
+                if (command.toLowerCase() === 'help') {
+                    addTerminalOutput('system:', `Available commands:
+- help: Show this help message
+- stats: Show current volume statistics
+- trend: Analyze volume trends
+- compare: Compare current vs previous period
+- Ask any question about the pump.fun data!`);
+                } else if (command.toLowerCase() === 'stats') {
+                    const current = volumeData.current;
+                    addTerminalOutput('system:', `Current Statistics:
+• Total Volume: ${current.totalVolume.toFixed(2)} SOL
+• Buy/Sell Ratio: ${(current.buyVolume/current.sellVolume).toFixed(2)}
+• Total Trades: ${current.totalTrades.toLocaleString()}
+• New Coins: ${current.newCoins.toLocaleString()}
+• KOTH Reached: ${current.reachedKOTH}
+• Fully Bonded: ${current.fullyBonded}`);
+                } else if (command.toLowerCase() === 'trend') {
+                    const current = volumeData.current;
+                    const previous = volumeData.previous;
+                    const volumeChange = ((current.totalVolume - previous.totalVolume) / previous.totalVolume * 100).toFixed(2);
+                    addTerminalOutput('system:', `Volume Trend Analysis:
+• Volume Change: ${volumeChange}% (${volumeChange > 0 ? 'increasing' : 'decreasing'})
+• Market Activity: ${current.totalTrades > previous.totalTrades ? 'Rising' : 'Declining'}
+• New Token Creation: ${current.newCoins > previous.newCoins ? 'Active' : 'Slowing'}`);
+                } else if (command.toLowerCase() === 'compare') {
+                    const current = volumeData.current;
+                    const previous = volumeData.previous;
+                    addTerminalOutput('system:', `Period Comparison:
+• Volume: ${current.totalVolume.toFixed(2)} SOL vs ${previous.totalVolume.toFixed(2)} SOL
+• Trades: ${current.totalTrades} vs ${previous.totalTrades}
+• New Coins: ${current.newCoins} vs ${previous.newCoins}
+• KOTH Success Rate: ${(current.reachedKOTH/current.newCoins*100).toFixed(1)}% vs ${(previous.reachedKOTH/previous.newCoins*100).toFixed(1)}%`);
+                } else {
+                    // AI-powered analysis
+                    if (!apiKey) {
+                        addTerminalOutput('error:', 'Please configure your Anthropic API key first.');
+                    } else {
+                        await processAIQuery(command);
+                    }
+                }
+            } catch (error) {
+                addTerminalOutput('error:', 'An error occurred processing your request.');
+                console.error(error);
+            }
+
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send';
+        }
+
+        async function processAIQuery(query) {
+            try {
+                const dataContext = `Current pump.fun data:
+- Total Volume: ${volumeData.current.totalVolume.toFixed(2)} SOL
+- Buy Volume: ${volumeData.current.buyVolume.toFixed(2)} SOL  
+- Sell Volume: ${volumeData.current.sellVolume.toFixed(2)} SOL
+- Total Trades: ${volumeData.current.totalTrades}
+- New Coins: ${volumeData.current.newCoins}
+- Total Buys: ${volumeData.current.totalBuys}
+- Total Sells: ${volumeData.current.totalSells}
+- Reached KOTH: ${volumeData.current.reachedKOTH}
+- Fully Bonded: ${volumeData.current.fullyBonded}
+
+Previous period data:
+- Total Volume: ${volumeData.previous.totalVolume.toFixed(2)} SOL
+- Total Trades: ${volumeData.previous.totalTrades}
+- New Coins: ${volumeData.previous.newCoins}
+
+User query: ${query}
+
+Please provide a helpful analysis or answer based on this pump.fun volume data.`;
+
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey,
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-3-sonnet-20240229',
+                        max_tokens: 500,
+                        messages: [
+                            {
+                                role: 'user',
+                                content: dataContext
+                            }
+                        ]
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const answer = data.content[0].text;
+                
+                addTerminalOutput('ai:', answer);
+            } catch (error) {
+                addTerminalOutput('error:', `Failed to get AI response: ${error.message}. Please check your API key.`);
+            }
+        }
+
+        // Handle Enter key in terminal input
+        document.getElementById('terminalInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendCommand();
+            }
+        });
+
+        // Auto-refresh data every 60 seconds (replace with real data fetching)
+        setInterval(() => {
+            // In a real implementation, fetch new data from your backend
+            // updateStats();
+            // updateCharts();
+        }, 60000);
+
+        // Initialize the dashboard
+        init();
+    </script>
+</body>
+</html>
