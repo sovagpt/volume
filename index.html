@@ -43,6 +43,31 @@
             -webkit-text-fill-color: transparent;
         }
 
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.live { background-color: #4ecdc4; }
+        .status-dot.error { background-color: #ff6b6b; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -57,11 +82,22 @@
             padding: 25px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
 
         .stat-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-card.updated {
+            animation: cardUpdate 0.8s ease;
+        }
+
+        @keyframes cardUpdate {
+            0% { background: rgba(78, 205, 196, 0.3); }
+            100% { background: rgba(255, 255, 255, 0.1); }
         }
 
         .stat-title {
@@ -204,42 +240,11 @@
             cursor: not-allowed;
         }
 
-        .config-section {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        .last-update {
+            text-align: center;
             margin-bottom: 20px;
-        }
-
-        .config-input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            font-size: 0.9rem;
-        }
-
-        .config-input::placeholder {
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .save-btn {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            border: none;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-top: 10px;
-            transition: opacity 0.3s ease;
-        }
-
-        .save-btn:hover {
             opacity: 0.8;
+            font-size: 0.9rem;
         }
 
         @media (max-width: 768px) {
@@ -257,13 +262,15 @@
     <div class="container">
         <div class="header">
             <h1>🚀 Pump.fun Volume Analytics</h1>
-            <p>Real-time volume tracking and AI-powered analysis</p>
+            <p>Live volume tracking from Telegram with AI-powered analysis</p>
+            <div class="status-indicator">
+                <div class="status-dot live" id="statusDot"></div>
+                <span id="statusText">Live Data Feed Active</span>
+            </div>
         </div>
 
-        <div class="config-section">
-            <h3>Configuration</h3>
-            <input type="password" id="apiKey" class="config-input" placeholder="Enter Anthropic API Key">
-            <button class="save-btn" onclick="saveApiKey()">Save API Key</button>
+        <div class="last-update" id="lastUpdate">
+            Last Update: --
         </div>
 
         <div class="stats-grid" id="statsGrid">
@@ -295,21 +302,59 @@
                     <span class="terminal-prompt">pump.fun@analytics:~$</span> Welcome to Pump.fun AI Analytics Terminal
                 </div>
                 <div class="terminal-output">
-                    <span class="terminal-prompt">system:</span> Ready to analyze volume data. Type 'help' for available commands.
+                    <span class="terminal-prompt">system:</span> Connected to live Telegram feed. Type 'help' for commands.
                 </div>
             </div>
             <div class="terminal-input-container">
                 <span class="terminal-prompt">pump.fun@analytics:~$</span>
-                <input type="text" id="terminalInput" class="terminal-input" placeholder="Enter command or question...">
+                <input type="text" id="terminalInput" class="terminal-input" placeholder="Ask about volume trends, analysis, or predictions...">
                 <button class="send-btn" onclick="sendCommand()">Send</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Sample data structure (replace with real data from Telegram bot)
         let volumeData = {
-            current: {
+            current: {},
+            previous: {},
+            hourlyData: [],
+            rawTelegramData: []
+        };
+
+        let volumeChart, tradingChart;
+        let isConnected = false;
+
+        // Initialize the dashboard
+        async function init() {
+            await fetchLatestData();
+            updateStats();
+            createCharts();
+            startLiveUpdates();
+            addTerminalOutput('system:', 'Dashboard initialized. Monitoring Telegram feed...');
+        }
+
+        // Fetch latest data from API
+        async function fetchLatestData() {
+            try {
+                const response = await fetch('/api/telegram-data');
+                if (response.ok) {
+                    const data = await response.json();
+                    updateVolumeData(data);
+                    updateConnectionStatus(true);
+                } else {
+                    throw new Error('Failed to fetch data');
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                updateConnectionStatus(false);
+                // Load demo data if API fails
+                loadDemoData();
+            }
+        }
+
+        function loadDemoData() {
+            // Demo data for testing
+            volumeData.current = {
                 totalVolume: 14629.24,
                 buyVolume: 8081.8,
                 sellVolume: 6547.44,
@@ -318,9 +363,11 @@
                 totalBuys: 17536,
                 totalSells: 16914,
                 reachedKOTH: 44,
-                fullyBonded: 19
-            },
-            previous: {
+                fullyBonded: 19,
+                timestamp: new Date()
+            };
+
+            volumeData.previous = {
                 totalVolume: 12946.51,
                 buyVolume: 7160.86,
                 sellVolume: 5785.65,
@@ -330,32 +377,63 @@
                 totalSells: 15789,
                 reachedKOTH: 27,
                 fullyBonded: 8
-            },
-            hourlyData: []
-        };
+            };
 
-        let apiKey = '';
-        let volumeChart, tradingChart;
-
-        // Initialize the dashboard
-        function init() {
             generateHourlyData();
-            updateStats();
-            createCharts();
-            loadApiKey();
+        }
+
+        function updateVolumeData(data) {
+            if (volumeData.current.totalVolume) {
+                volumeData.previous = { ...volumeData.current };
+            }
+            
+            volumeData.current = {
+                ...data,
+                timestamp: new Date()
+            };
+
+            // Add to hourly data
+            volumeData.hourlyData.push({
+                time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                volume: data.totalVolume,
+                trades: data.totalTrades,
+                newCoins: data.newCoins
+            });
+
+            // Keep only last 24 hours
+            if (volumeData.hourlyData.length > 24) {
+                volumeData.hourlyData.shift();
+            }
+
+            document.getElementById('lastUpdate').textContent = 
+                `Last Update: ${new Date().toLocaleString()}`;
         }
 
         function generateHourlyData() {
-            // Generate sample hourly data for the last 24 hours
+            // Generate sample data if no real data available
             const now = new Date();
             for (let i = 23; i >= 0; i--) {
                 const hour = new Date(now.getTime() - (i * 60 * 60 * 1000));
                 volumeData.hourlyData.push({
-                    time: hour.getHours() + ':00',
+                    time: hour.getHours().toString().padStart(2, '0') + ':00',
                     volume: Math.random() * 2000 + 10000,
                     trades: Math.floor(Math.random() * 500 + 1000),
                     newCoins: Math.floor(Math.random() * 50 + 30)
                 });
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            isConnected = connected;
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            if (connected) {
+                statusDot.className = 'status-dot live';
+                statusText.textContent = 'Live Data Feed Active';
+            } else {
+                statusDot.className = 'status-dot error';
+                statusText.textContent = 'Connection Error - Using Demo Data';
             }
         }
 
@@ -364,11 +442,15 @@
             const current = volumeData.current;
             const previous = volumeData.previous;
 
+            if (!current.totalVolume) return;
+
             function getChangePercent(current, previous) {
+                if (!previous) return '0.00';
                 return ((current - previous) / previous * 100).toFixed(2);
             }
 
             function getChangeClass(current, previous) {
+                if (!previous) return 'positive';
                 return current >= previous ? 'positive' : 'negative';
             }
 
@@ -416,7 +498,7 @@
             ];
 
             statsGrid.innerHTML = stats.map(stat => `
-                <div class="stat-card">
+                <div class="stat-card updated">
                     <div class="stat-title">${stat.title}</div>
                     <div class="stat-value">${stat.value}</div>
                     <div class="stat-change ${stat.changeClass}">
@@ -424,6 +506,13 @@
                     </div>
                 </div>
             `).join('');
+
+            // Remove animation class after animation completes
+            setTimeout(() => {
+                document.querySelectorAll('.stat-card').forEach(card => {
+                    card.classList.remove('updated');
+                });
+            }, 800);
         }
 
         function createCharts() {
@@ -493,22 +582,26 @@
             });
         }
 
-        function saveApiKey() {
-            const key = document.getElementById('apiKey').value;
-            if (key) {
-                apiKey = key;
-                localStorage.setItem('anthropic_api_key', key);
-                addTerminalOutput('system:', 'API key saved successfully!');
-                document.getElementById('apiKey').value = '';
+        function updateCharts() {
+            if (volumeChart && tradingChart) {
+                volumeChart.data.labels = volumeData.hourlyData.map(d => d.time);
+                volumeChart.data.datasets[0].data = volumeData.hourlyData.map(d => d.volume);
+                volumeChart.update();
+
+                tradingChart.data.labels = volumeData.hourlyData.slice(-6).map(d => d.time);
+                tradingChart.data.datasets[0].data = volumeData.hourlyData.slice(-6).map(d => d.trades);
+                tradingChart.data.datasets[1].data = volumeData.hourlyData.slice(-6).map(d => d.newCoins);
+                tradingChart.update();
             }
         }
 
-        function loadApiKey() {
-            const stored = localStorage.getItem('anthropic_api_key');
-            if (stored) {
-                apiKey = stored;
-                addTerminalOutput('system:', 'API key loaded from storage.');
-            }
+        function startLiveUpdates() {
+            // Check for new data every 30 seconds
+            setInterval(async () => {
+                await fetchLatestData();
+                updateStats();
+                updateCharts();
+            }, 30000);
         }
 
         function addTerminalOutput(type, message) {
@@ -537,42 +630,31 @@
                 if (command.toLowerCase() === 'help') {
                     addTerminalOutput('system:', `Available commands:
 - help: Show this help message
-- stats: Show current volume statistics
+- stats: Show current volume statistics  
 - trend: Analyze volume trends
 - compare: Compare current vs previous period
-- Ask any question about the pump.fun data!`);
+- status: Check connection status
+- Ask any question about pump.fun data for AI analysis!`);
+                } else if (command.toLowerCase() === 'status') {
+                    addTerminalOutput('system:', `Connection Status: ${isConnected ? 'Connected' : 'Disconnected'}
+Last Update: ${volumeData.current.timestamp ? volumeData.current.timestamp.toLocaleString() : 'No data'}
+Data Points: ${volumeData.hourlyData.length} hourly records`);
                 } else if (command.toLowerCase() === 'stats') {
                     const current = volumeData.current;
-                    addTerminalOutput('system:', `Current Statistics:
+                    if (current.totalVolume) {
+                        addTerminalOutput('system:', `Current Statistics:
 • Total Volume: ${current.totalVolume.toFixed(2)} SOL
 • Buy/Sell Ratio: ${(current.buyVolume/current.sellVolume).toFixed(2)}
 • Total Trades: ${current.totalTrades.toLocaleString()}
 • New Coins: ${current.newCoins.toLocaleString()}
 • KOTH Reached: ${current.reachedKOTH}
 • Fully Bonded: ${current.fullyBonded}`);
-                } else if (command.toLowerCase() === 'trend') {
-                    const current = volumeData.current;
-                    const previous = volumeData.previous;
-                    const volumeChange = ((current.totalVolume - previous.totalVolume) / previous.totalVolume * 100).toFixed(2);
-                    addTerminalOutput('system:', `Volume Trend Analysis:
-• Volume Change: ${volumeChange}% (${volumeChange > 0 ? 'increasing' : 'decreasing'})
-• Market Activity: ${current.totalTrades > previous.totalTrades ? 'Rising' : 'Declining'}
-• New Token Creation: ${current.newCoins > previous.newCoins ? 'Active' : 'Slowing'}`);
-                } else if (command.toLowerCase() === 'compare') {
-                    const current = volumeData.current;
-                    const previous = volumeData.previous;
-                    addTerminalOutput('system:', `Period Comparison:
-• Volume: ${current.totalVolume.toFixed(2)} SOL vs ${previous.totalVolume.toFixed(2)} SOL
-• Trades: ${current.totalTrades} vs ${previous.totalTrades}
-• New Coins: ${current.newCoins} vs ${previous.newCoins}
-• KOTH Success Rate: ${(current.reachedKOTH/current.newCoins*100).toFixed(1)}% vs ${(previous.reachedKOTH/previous.newCoins*100).toFixed(1)}%`);
-                } else {
-                    // AI-powered analysis
-                    if (!apiKey) {
-                        addTerminalOutput('error:', 'Please configure your Anthropic API key first.');
                     } else {
-                        await processAIQuery(command);
+                        addTerminalOutput('error:', 'No current data available');
                     }
+                } else {
+                    // AI-powered analysis via API
+                    await processAIQuery(command);
                 }
             } catch (error) {
                 addTerminalOutput('error:', 'An error occurred processing your request.');
@@ -585,55 +667,27 @@
 
         async function processAIQuery(query) {
             try {
-                const dataContext = `Current pump.fun data:
-- Total Volume: ${volumeData.current.totalVolume.toFixed(2)} SOL
-- Buy Volume: ${volumeData.current.buyVolume.toFixed(2)} SOL  
-- Sell Volume: ${volumeData.current.sellVolume.toFixed(2)} SOL
-- Total Trades: ${volumeData.current.totalTrades}
-- New Coins: ${volumeData.current.newCoins}
-- Total Buys: ${volumeData.current.totalBuys}
-- Total Sells: ${volumeData.current.totalSells}
-- Reached KOTH: ${volumeData.current.reachedKOTH}
-- Fully Bonded: ${volumeData.current.fullyBonded}
-
-Previous period data:
-- Total Volume: ${volumeData.previous.totalVolume.toFixed(2)} SOL
-- Total Trades: ${volumeData.previous.totalTrades}
-- New Coins: ${volumeData.previous.newCoins}
-
-User query: ${query}
-
-Please provide a helpful analysis or answer based on this pump.fun volume data.`;
-
-                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                const response = await fetch('/api/ai-analysis', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-API-Key': apiKey,
-                        'anthropic-version': '2023-06-01'
                     },
                     body: JSON.stringify({
-                        model: 'claude-3-sonnet-20240229',
-                        max_tokens: 500,
-                        messages: [
-                            {
-                                role: 'user',
-                                content: dataContext
-                            }
-                        ]
+                        query: query,
+                        currentData: volumeData.current,
+                        previousData: volumeData.previous,
+                        hourlyData: volumeData.hourlyData
                     })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`API request failed: ${response.status}`);
+                    throw new Error(`AI request failed: ${response.status}`);
                 }
 
                 const data = await response.json();
-                const answer = data.content[0].text;
-                
-                addTerminalOutput('ai:', answer);
+                addTerminalOutput('ai:', data.response);
             } catch (error) {
-                addTerminalOutput('error:', `Failed to get AI response: ${error.message}. Please check your API key.`);
+                addTerminalOutput('error:', `AI analysis unavailable: ${error.message}`);
             }
         }
 
@@ -643,13 +697,6 @@ Please provide a helpful analysis or answer based on this pump.fun volume data.`
                 sendCommand();
             }
         });
-
-        // Auto-refresh data every 60 seconds (replace with real data fetching)
-        setInterval(() => {
-            // In a real implementation, fetch new data from your backend
-            // updateStats();
-            // updateCharts();
-        }, 60000);
 
         // Initialize the dashboard
         init();
