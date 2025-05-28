@@ -19,10 +19,5 @@
       "src": "/(.*)",
       "dest": "/$1"
     }
-  ],
-  "env": {
-    "ANTHROPIC_API_KEY": "@anthropic-api-key",
-    "TELEGRAM_BOT_TOKEN": "@telegram-bot-token",
-    "TELEGRAM_CHANNEL_ID": "@telegram-channel-id"
-  }
+  ]
 }
