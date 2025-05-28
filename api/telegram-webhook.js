@@ -3,7 +3,7 @@
 
 let latestVolumeData = null;
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -124,11 +124,14 @@ function parseVolumeReport(text) {
 }
 
 // Export function to get latest data (used by telegram-data.js)
-export function getLatestVolumeData() {
+function getLatestVolumeData() {
   return latestVolumeData;
 }
 
 // Function to store data (in production, use Redis/Database)
-export function setLatestVolumeData(data) {
+function setLatestVolumeData(data) {
   latestVolumeData = data;
 }
+
+module.exports.getLatestVolumeData = getLatestVolumeData;
+module.exports.setLatestVolumeData = setLatestVolumeData;
