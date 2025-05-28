@@ -1,5 +1,5 @@
 // api/ai-analysis.js
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -143,7 +143,7 @@ Please provide a helpful analysis based on the pump.fun volume data above. Be sp
 }
 
 // Predefined analysis functions for common queries
-export function generateTrendAnalysis(currentData, previousData, hourlyData) {
+function generateTrendAnalysis(currentData, previousData, hourlyData) {
   if (!currentData || !previousData) return "Insufficient data for trend analysis";
 
   const volumeChange = ((currentData.totalVolume - previousData.totalVolume) / previousData.totalVolume * 100).toFixed(2);
@@ -161,7 +161,7 @@ export function generateTrendAnalysis(currentData, previousData, hourlyData) {
   return analysis;
 }
 
-export function generateMarketSummary(currentData) {
+function generateMarketSummary(currentData) {
   if (!currentData) return "No current market data available";
 
   let summary = `Market Summary:\n`;
@@ -176,3 +176,6 @@ export function generateMarketSummary(currentData) {
 
   return summary;
 }
+
+module.exports.generateTrendAnalysis = generateTrendAnalysis;
+module.exports.generateMarketSummary = generateMarketSummary;
