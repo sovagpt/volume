@@ -1,5 +1,5 @@
 // api/telegram-data.js
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -113,7 +113,7 @@ function parseVolumeReport(text) {
 }
 
 // Alternative webhook method for real-time updates
-export async function setupTelegramWebhook() {
+async function setupTelegramWebhook() {
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const WEBHOOK_URL = process.env.VERCEL_URL 
     ? `https://${process.env.VERCEL_URL}/api/telegram-webhook`
@@ -130,3 +130,16 @@ export async function setupTelegramWebhook() {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: WEBHOOK_URL,
+          allowed_updates: ['message']
+        })
+      }
+    );
+
+    const result = await response.json();
+    console.log('Webhook setup result:', result);
+  } catch (error) {
+    console.error('Failed to setup webhook:', error);
+  }
+}
