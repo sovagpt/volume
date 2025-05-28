@@ -2,7 +2,6 @@
   "name": "pumpfun-analytics",
   "version": "1.0.0",
   "description": "Live pump.fun volume analytics with Telegram integration",
-  "type": "module",
   "main": "index.html",
   "scripts": {
     "dev": "vercel dev",
