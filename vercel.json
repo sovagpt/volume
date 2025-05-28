@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "ANTHROPIC_API_KEY": "@anthropic-api-key",
+    "TELEGRAM_BOT_TOKEN": "@telegram-bot-token",
+    "TELEGRAM_CHANNEL_ID": "@telegram-channel-id"
+  }
+}
